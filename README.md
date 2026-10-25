@@ -106,6 +106,20 @@ Do not work directly on `main`. Use feature branches and pull requests.
 
 See `CONTRIBUTING.md` and `docs/team_workflow.md`.
 
+
+## Team Methodology
+
+All team members follow the shared methodology defined in:
+
+[PROJECT_CONTRACT.md](PROJECT_CONTRACT.md)
+
+Role-specific instructions are available in:
+
+- [Language & Integration](guides/02_language_integration.md)
+- [Economic & Living Conditions](guides/03_economic_living.md)
+- [Health & Discrimination](guides/04_health_discrimination.md)
+- [Integrated Model](guides/05_integrated_model_plan.md)
+
 ## License
 
 The source code is licensed under the MIT License.
