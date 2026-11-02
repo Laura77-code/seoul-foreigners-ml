@@ -6,7 +6,7 @@ How are work, income, education, and housing characteristics associated with ove
 ## 2. Dataset and Shared Split
 - Shared master: 2,500 respondents
 - Train: 2,000; test: 500
-- Regression: `Q11`; classification: `high_satisfaction` (`Q11 >= 8`)
+- Regression: `Q11`; classification: `high_satisfaction` (`Q11 >= 8`).
 
 ## 3. Codebook-verified Features
 Fill in meanings and coding direction for every variable.
