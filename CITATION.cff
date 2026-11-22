@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite this repository."
+title: "Seoul Foreigners ML"
+type: software
+version: 0.1.0
+date-released: 2026-10-25
+license: MIT
+authors:
+  - name: "Seoul Foreigners ML contributors"

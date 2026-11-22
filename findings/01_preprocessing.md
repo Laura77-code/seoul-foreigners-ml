@@ -144,3 +144,6 @@ The exported train and test identifiers were independently verified.
   - Test set: 7.756
 
 The exported split is therefore internally consistent and preserves the target distribution.
+## Post-Audit Corrections
+
+See [Methodology Change Log](METHODOLOGY_CHANGELOG.md) for the codebook-verified recoding of non-applicable `Q24_*` responses, revised modeling missingness policy and training-only feature importance. Execute the corrected Notebook 01 to recreate the processed master before running 02–05.
