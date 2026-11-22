@@ -1,0 +1,13 @@
+Corrected local release audit — November 20, 2026
+
+$ python -m pytest -q
+........                                                                 [100%]
+8 passed in 2.70s
+
+$ python scripts/verify_release.py --with-data
+[PASS] Project structure and all notebook code syntax
+[PASS] Dataset IDs, targets, special-code recoding, and all 02–05 metric exports
+[INFO] Samples=2500, train=2000, test=500, class1=65.5200%
+
+Executed with the supplied local 2025 Seoul Survey workbook.
+The public repository intentionally excludes raw and processed respondent-level rows.

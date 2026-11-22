@@ -1,26 +1,28 @@
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
+# Virtual environments and Python
 .venv/
 venv/
-env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 .ipynb_checkpoints/
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-.env
-.env.*
-
+.mypy_cache/
+.ruff_cache/
+# Respondent-level survey and derived data (never commit)
 data/raw/*
-!data/raw/README.md
+!data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
-
-figures/*
-!figures/.gitkeep
+# Generated outputs (aggregated metrics should be summarised in findings)
 results/*
 !results/.gitkeep
-report/*
-!report/.gitkeep
+figures/*
+!figures/.gitkeep
+*.log
+.env
+.env.*
+!*.example
+# Packaged / temporary files
+*.zip
+*.egg-info/
+build/
+dist/

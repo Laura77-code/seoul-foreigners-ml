@@ -10,7 +10,7 @@ from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.svm import SVR, SVC
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.model_selection import StratifiedKFold, KFold, cross_validate
+from sklearn.model_selection import StratifiedKFold, KFold, cross_validate, train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, balanced_accuracy_score, roc_auc_score, confusion_matrix, mean_absolute_error, mean_squared_error, r2_score
 from sklearn.inspection import permutation_importance
 from sklearn.base import clone
@@ -58,17 +58,21 @@ def validate_features(frame, nominal, ordinal, numeric):
     illegal={'ID','Q11','high_satisfaction', 'Q14','Q4_1','Q4_2','Q4_3','Q4_4','Q4_5','Q4_6','Q4_7', 'Q10_1','Q10_2','Q10_3','Q10_4','Q10_5', 'RIM_WT','RIM_WT1'} & set(features)
     if illegal: raise ValueError('Excluded/target-proximal features in core model: '+str(illegal))
     if not features: raise ValueError('Empty features')
+    # Survey codes must be interpreted using the official codebook; dtype alone is insufficient.
     return features
 
 
 def preprocessing(nominal,ordinal,numeric):
-    # A feature can be all-missing in one fold; constant imputation keeps its shape.
+    # Training-fold-only preprocessing. Codebook-defined non-applicability remains
+    # NaN in the modeling master. A distinct sentinel keeps categorical missingness
+    # visible; numeric indicators retain absent-versus-present information.
+    # Numeric median and scaling are fitted ONLY on the corresponding training fold.
     categorical=Pipeline([
-        ('impute',SimpleImputer(strategy='most_frequent',keep_empty_features=True)),
+        ('impute',SimpleImputer(strategy='constant',fill_value=-1,keep_empty_features=True)),
         ('encode',OneHotEncoder(handle_unknown='ignore',sparse_output=False))
     ])
     numeric_pipeline=Pipeline([
-        ('impute',SimpleImputer(strategy='median',keep_empty_features=True)),
+        ('impute',SimpleImputer(strategy='median',add_indicator=True,keep_empty_features=True)),
         ('scale',StandardScaler())
     ])
     transformers=[]
@@ -90,7 +94,7 @@ def candidates(task,nominal,ordinal,numeric):
     return {
        'DummyMostFrequent':pipe(DummyClassifier(strategy='most_frequent')),
        'LogisticRegression':pipe(LogisticRegression(C=1.0,max_iter=2000,solver='lbfgs',random_state=RANDOM_STATE)),
-       'SVC_RBF':pipe(SVC(C=1.0,kernel='rbf',gamma='scale',probability=True,random_state=RANDOM_STATE)),
+       'SVC_RBF':pipe(SVC(C=1.0,kernel='rbf',gamma='scale',probability=False,random_state=RANDOM_STATE)),
        'RandomForest':pipe(RandomForestClassifier(n_estimators=200,max_depth=8,min_samples_leaf=3,random_state=RANDOM_STATE,n_jobs=N_JOBS))
     }
 
@@ -136,7 +140,15 @@ def evaluate_winner(train,test,nominal,ordinal,numeric,task,model_name):
             'r2':r2_score(y_true,pred)}
         confusion=None
     else:
-        scores=pipe.predict_proba(test[features])[:,list(pipe.named_steps['model'].classes_).index(POSITIVE_LABEL)]
+        # ROC-AUC only requires a continuous ranking score. Avoid expensive
+        # SVC probability fitting; decision_function is appropriate for AUC.
+        if hasattr(pipe, 'predict_proba'):
+            try:
+                scores = pipe.predict_proba(test[features])[:, list(pipe.named_steps['model'].classes_).index(POSITIVE_LABEL)]
+            except AttributeError:
+                scores = pipe.decision_function(test[features])
+        else:
+            scores = pipe.decision_function(test[features])
         metrics={'model':model_name,'task':task,
             'accuracy':accuracy_score(y_true,pred),
             'precision':precision_score(y_true,pred,zero_division=0),
@@ -149,9 +161,28 @@ def evaluate_winner(train,test,nominal,ordinal,numeric,task,model_name):
     return pipe,pd.DataFrame([metrics]),confusion
 
 
-def feature_permutation(model,test,features,task,n_repeats=5):
-    # Test-set permutation importance is descriptive only, not used for selection.
-    target=REGRESSION_TARGET if task=='regression' else CLASSIFICATION_TARGET
-    scoring='neg_root_mean_squared_error' if task=='regression' else 'f1'
-    result=permutation_importance(model,test[features],test[target],scoring=scoring,n_repeats=n_repeats,random_state=RANDOM_STATE,n_jobs=N_JOBS)
-    return pd.DataFrame({'feature':features,'importance_mean':result.importances_mean,'importance_std':result.importances_std}).sort_values('importance_mean',ascending=False)
+def feature_permutation(model, train, features, task, n_repeats=5):
+    """Training-only held-out permutation importance; NEVER use test for selection.
+
+    Refit the selected pipeline on a deterministic 80% subset of the original
+    training set, and compute importance on the remaining 20%. The feature
+    ranking is descriptive, not an independent estimate of causal effects.
+    """
+    target = REGRESSION_TARGET if task == 'regression' else CLASSIFICATION_TARGET
+    X, y = train[features], train[target]
+    X_fit, X_val, y_fit, y_val = train_test_split(
+        X, y, test_size=0.20, random_state=RANDOM_STATE,
+        stratify=y if task == 'classification' else None
+    )
+    heldout_model = clone(model)
+    heldout_model.fit(X_fit, y_fit)
+    scoring = 'neg_root_mean_squared_error' if task == 'regression' else 'f1_macro'
+    result = permutation_importance(
+        heldout_model, X_val, y_val, scoring=scoring,
+        n_repeats=n_repeats, random_state=RANDOM_STATE, n_jobs=N_JOBS
+    )
+    return pd.DataFrame({
+        'feature': features,
+        'importance_mean': result.importances_mean,
+        'importance_std': result.importances_std
+    }).sort_values('importance_mean', ascending=False)
